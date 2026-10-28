@@ -44,7 +44,7 @@ export default function Auth() {
   return (
     <div className="auth-wrap">
       <div className="auth-hero">
-        <div className="logo-mark big"><Icon name="home" size={34} /></div>
+        <div className="logo-mark big"><img src="/icon.svg" alt="" /></div>
         <h1>All in the Family</h1>
         <p>One calendar, shared lists, and quick votes for the whole crew.</p>
         <div className="hero-dots" aria-hidden="true">

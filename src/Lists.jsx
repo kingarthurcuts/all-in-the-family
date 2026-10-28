@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, errMsg } from './supabase'
-import { Icon, Avatar, Sheet, Empty } from './ui'
+import { Icon, Avatar, Sheet, Empty, buzz } from './ui'
 import { useLive } from './useLive'
 
 const EMOJIS = ['📝', '🛒', '✅', '🎬', '🍕', '🧹', '🎁', '✈️', '📚', '🏡', '🎉', '💡']
@@ -119,6 +119,7 @@ function ListDetail({ list, items, setItems, user, profiles, onBack, reload }) {
   }
   async function toggle(item) {
     const next = !item.done
+    if (next) buzz()
     setItems((all) => all.map((i) => (i.id === item.id ? { ...i, done: next, done_by: next ? user.id : null } : i)))
     await supabase.from('list_items').update({ done: next, done_by: next ? user.id : null }).eq('id', item.id)
   }
@@ -159,7 +160,7 @@ function ListDetail({ list, items, setItems, user, profiles, onBack, reload }) {
         </div>
 
         <form className="add-row" onSubmit={add}>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add something…" maxLength={200} aria-label="New item" />
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add something…" maxLength={200} aria-label="New item" enterKeyHint="done" autoCapitalize="sentences" />
           <button className="btn primary" aria-label="Add item"><Icon name="plus" size={20} /></button>
         </form>
         {error && <div className="error">{error}</div>}

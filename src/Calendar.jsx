@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, errMsg } from './supabase'
 import { MONTHS, DOW, dayKey, fromDayKey, monthGrid, eventDays, prettyTime, prettyDay, shortDay, combine, timeStr } from './dates'
-import { Icon, Avatar, Sheet, Empty } from './ui'
+import { Icon, Avatar, Sheet, Empty, isTouch } from './ui'
 import { useLive } from './useLive'
 
 export default function Calendar({ family, profiles }) {
@@ -10,6 +10,7 @@ export default function Calendar({ family, profiles }) {
   const [selected, setSelected] = useState(dayKey(today))
   const [events, setEvents] = useState([])
   const [editing, setEditing] = useState(null) // {} for new, event for edit
+  const swipe = useRef(null)
 
   const days = useMemo(() => monthGrid(cursor.y, cursor.m), [cursor])
   const rangeStart = days[0]
@@ -65,7 +66,15 @@ export default function Calendar({ family, profiles }) {
             <button className="icon-btn" onClick={() => shift(1)} aria-label="Next month"><Icon name="right" /></button>
           </div>
         </div>
-        <div className="cal-grid">
+        <div className="cal-grid"
+          onTouchStart={(e) => { swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
+          onTouchEnd={(e) => {
+            const s = swipe.current; swipe.current = null
+            if (!s) return
+            const dx = e.changedTouches[0].clientX - s.x
+            const dy = e.changedTouches[0].clientY - s.y
+            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shift(dx < 0 ? 1 : -1)
+          }}>
           {DOW.map((d) => <div key={d} className="dow">{d}</div>)}
           {days.map((d) => {
             const k = dayKey(d)
@@ -217,7 +226,7 @@ function EventForm({ initial, family, profiles, onClose, onSaved }) {
     <Sheet title={isNew ? 'New event' : 'Edit event'} onClose={onClose}>
       <form className="form" onSubmit={save}>
         <label>What’s happening?
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Leo’s soccer game" required maxLength={120} autoFocus />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Soccer practice" required maxLength={120} autoFocus={isNew && !isTouch()} enterKeyHint="next" />
         </label>
         <label className="toggle">
           <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />
@@ -235,10 +244,10 @@ function EventForm({ initial, family, profiles, onClose, onSaved }) {
           </label>
           {!allDay && <label>Time<input type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></label>}
         </div>
-        <label>Where <span className="opt">optional</span>
+        <label><span>Where <span className="opt">optional</span></span>
           <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Riverside Park, field 3" maxLength={160} />
         </label>
-        <label>Notes <span className="opt">optional</span>
+        <label><span>Notes <span className="opt">optional</span></span>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Bring snacks and the blue jersey" maxLength={2000} />
         </label>
         {!isNew && (

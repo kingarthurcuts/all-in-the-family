@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, errMsg } from './supabase'
-import { Icon, Avatar, Sheet, Empty } from './ui'
+import { Icon, Avatar, Sheet, Empty, buzz } from './ui'
 import { useLive } from './useLive'
 import { relative, shortDay, prettyTime } from './dates'
 
@@ -71,6 +71,7 @@ function PollCard({ poll, closed, options, votes, user, profiles, memberCount, s
   async function vote(opt) {
     if (closed || busy) return
     setBusy(true)
+    buzz()
     const base = { poll_id: poll.id, family_id: poll.family_id, user_id: user.id }
     if (mine.has(opt.id)) {
       setVotes((all) => all.filter((v) => !(v.option_id === opt.id && v.user_id === user.id)))
@@ -184,7 +185,7 @@ function NewPoll({ family, onClose, onCreated }) {
           <input type="checkbox" checked={multi} onChange={(e) => setMulti(e.target.checked)} />
           <span className="switch" /> Let people pick more than one
         </label>
-        <label>Voting ends <span className="opt">optional</span>
+        <label><span>Voting ends <span className="opt">optional</span></span>
           <input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
         </label>
         {error && <div className="error">{error}</div>}

@@ -42,7 +42,7 @@ export default function App() {
 function Splash() {
   return (
     <div className="splash">
-      <div className="logo-mark big"><Icon name="home" /></div>
+      <div className="logo-mark big"><img src="/icon.svg" alt="" /></div>
     </div>
   )
 }
@@ -110,7 +110,7 @@ function Home({ user }) {
     <div className="shell">
       <header className="topbar">
         <div className="brand">
-          <div className="logo-mark"><Icon name="home" /></div>
+          <div className="logo-mark"><img src="/icon.svg" alt="" /></div>
           <div>
             <div className="brand-name">All in the Family</div>
             {families.length > 1 ? (

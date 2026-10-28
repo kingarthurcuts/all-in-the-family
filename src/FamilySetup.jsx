@@ -28,7 +28,7 @@ export default function FamilySetup({ onDone, canCancel, onCancel }) {
   return (
     <div className="auth-wrap">
       <div className="auth-hero">
-        <div className="logo-mark big"><Icon name="home" size={34} /></div>
+        <div className="logo-mark big"><img src="/icon.svg" alt="" /></div>
         <h1>Let’s find your family</h1>
         <p>Start a new family space, or join one with the 6-letter code someone shared with you.</p>
       </div>

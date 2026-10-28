@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF9A62"/>
+      <stop offset="1" stop-color="#FF6A4D"/>
+    </linearGradient>
+    <clipPath id="house"><rect x="140" y="214" width="232" height="190" rx="30"/></clipPath>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="96" cy="70" r="150" fill="#FFFFFF" opacity=".10"/>
+  <circle cx="440" cy="460" r="120" fill="#B8331F" opacity=".10"/>
+  <g transform="translate(256 256) scale(1.1) translate(-256 -250)">
+  <!-- house -->
+  <polygon points="256,108 412,232 100,232" fill="#FFF8EF" stroke="#FFF8EF" stroke-width="26" stroke-linejoin="round"/>
+  <rect x="140" y="214" width="232" height="190" rx="30" fill="#FFF8EF"/>
+  <!-- heart in the gable -->
+  <path d="M256 202c-4-9-12-14-20-14-11 0-19 8-19 19 0 15 21 27 39 39 18-12 39-24 39-39 0-11-8-19-19-19-8 0-16 5-20 14z" fill="#FF7A59"/>
+  <!-- family -->
+  <g clip-path="url(#house)">
+    <circle cx="200" cy="286" r="23" fill="#2EC4B6"/>
+    <rect x="168" y="318" width="64" height="120" rx="32" fill="#2EC4B6"/>
+    <circle cx="312" cy="286" r="23" fill="#FFB703"/>
+    <rect x="280" y="318" width="64" height="120" rx="32" fill="#FFB703"/>
+    <circle cx="256" cy="326" r="18" fill="#8E7DBE"/>
+    <rect x="231" y="351" width="50" height="100" rx="25" fill="#8E7DBE"/>
+  </g>
+  </g>
+</svg>
