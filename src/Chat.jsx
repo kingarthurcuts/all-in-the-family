@@ -228,6 +228,8 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
   )
 }
 
+const PHOTO_W = 220
+
 function Bubble({ m, mine, first, last, showName, profile, picked, onPick, onDelete, src, onView }) {
   const hasImg = m.image_path || m.local_url || m.gif_url
   const ratio = m.image_w && m.image_h ? m.image_w / m.image_h : 1
@@ -237,7 +239,7 @@ function Bubble({ m, mine, first, last, showName, profile, picked, onPick, onDel
       <div className="msg-col">
         {!mine && showName && first && <span className="msg-name" style={{ color: profile?.color }}>{profile?.display_name || 'Member'}</span>}
         {hasImg && (
-          <button type="button" className={`photo ${m.pending ? 'sending' : ''}`} style={{ aspectRatio: String(Math.max(0.5, Math.min(2, ratio))) }}
+          <button type="button" className={`photo ${m.pending ? 'sending' : ''}`} style={{ width: PHOTO_W, height: Math.round(PHOTO_W / Math.max(0.5, Math.min(2, ratio))) }}
             onClick={() => (src ? onView({ src, m }) : null)} onContextMenu={(e) => { e.preventDefault(); onPick() }} aria-label="Open photo">
             {src ? <img src={src} alt="" loading="lazy" draggable="false" /> : <span className="photo-wait" />}
             {(m.gif_url || isGif(m.image_path)) && <span className="gif-tag">GIF</span>}

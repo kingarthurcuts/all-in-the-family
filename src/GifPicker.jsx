@@ -66,6 +66,7 @@ export default function GifPicker({ onPick, onClose }) {
           </div>
         )}
         {error && <div className="error">{error}</div>}
+        <div className="gif-scroll">
         <div className="gif-grid">
           {gifs === null && Array.from({ length: 8 }).map((_, i) => <span key={i} className="gif-cell skeleton" />)}
           {gifs?.map((g) => (
@@ -74,6 +75,7 @@ export default function GifPicker({ onPick, onClose }) {
             </button>
           ))}
           {gifs?.length === 0 && !error && <p className="quiet center gif-none">No GIFs found. Try another word.</p>}
+        </div>
         </div>
         <div className="giphy-credit">Powered by <b>GIPHY</b></div>
       </div>

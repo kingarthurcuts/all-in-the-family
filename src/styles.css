@@ -576,3 +576,14 @@ input::-webkit-date-and-time-value { text-align: left; }
 .giphy-credit { text-align: center; font-size: 12px; color: var(--ink-3); font-weight: 700; }
 .giphy-credit b { color: var(--ink); letter-spacing: .04em; }
 @media (min-width: 721px) { .gif-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* Safari fix: fixed sizes so GIF tiles and chat photos can't be squashed */
+.gif-grid { max-height: none; overflow: visible; grid-auto-rows: 124px; align-content: start; }
+.gif-scroll { max-height: 52dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; border-radius: 14px; }
+.gif-cell { aspect-ratio: auto; height: 124px; min-height: 124px; position: relative; }
+.gif-cell img { position: absolute; inset: 0; }
+.gif-none { height: auto; }
+.thread-scroll > * { flex-shrink: 0; }
+.msg-col > * { flex-shrink: 0; }
+.photo { max-height: none; flex-shrink: 0; }
+.photo img { position: absolute; inset: 0; }
