@@ -5,6 +5,7 @@ A shared family calendar with lists and polls. React + Vite on Vercel, Supabase 
 - **Calendar** (home): month view, tap a day to see/add events, color-coded by who added them.
 - **Lists**: groceries, chores, anything — check items off and see who added/finished them.
 - **Polls**: ask a question, add choices, everyone votes; optional deadline and multi-pick.
+- **Chat**: a family group chat plus private one-on-one messages with each member, with unread badges.
 - **Family**: invite code to share, member list, your name and color.
 
 Everything updates live across phones.
@@ -28,5 +29,5 @@ to your Vercel address so confirmation and password-reset emails link back to th
 ## Database
 
 Supabase project `dglqtnirlvlzzndkeuol`. Tables: profiles, families, family_members, events,
-lists, list_items, polls, poll_options, poll_votes — all protected by row-level security so
-people only ever see their own family's data. New families get a 6-character invite code.
+lists, list_items, polls, poll_options, poll_votes, messages, chat_reads — all protected by row-level security so
+people only ever see their own family's data. Private messages are readable only by their sender and recipient. New families get a 6-character invite code.

@@ -32,7 +32,7 @@ function InstallCard() {
 import { supabase, errMsg, COLORS } from './supabase'
 import { Icon, Avatar } from './ui'
 
-export default function Family({ family, user, me, profiles, members, reloadPeople, onAddFamily, onFamilyChanged }) {
+export default function Family({ family, user, me, profiles, members, reloadPeople, onAddFamily, onFamilyChanged, onMessage }) {
   const [copied, setCopied] = useState(false)
   const [name, setName] = useState(me?.display_name || '')
   const [color, setColor] = useState(me?.color || COLORS[0])
@@ -98,6 +98,11 @@ export default function Family({ family, user, me, profiles, members, reloadPeop
                 <Avatar profile={p} size={36} />
                 <span className="m-name">{p?.display_name || 'Member'}{m.user_id === user.id && <span className="quiet"> (you)</span>}</span>
                 {m.role === 'owner' && <span className="badge soft">Started it</span>}
+                {m.user_id !== user.id && (
+                  <button className="btn ghost small" onClick={() => onMessage(m.user_id)} aria-label={`Message ${p?.display_name || 'member'}`}>
+                    <Icon name="chat" size={16} /> Message
+                  </button>
+                )}
               </li>
             )
           })}

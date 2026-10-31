@@ -6,12 +6,15 @@ import Calendar from './Calendar'
 import Lists from './Lists'
 import Polls from './Polls'
 import Family from './Family'
+import Chat from './Chat'
+import { useChat } from './useChat'
 import { Icon } from './ui'
 
 const TABS = [
   { id: 'calendar', label: 'Calendar', icon: 'calendar' },
   { id: 'lists', label: 'Lists', icon: 'list' },
   { id: 'polls', label: 'Polls', icon: 'poll' },
+  { id: 'chat', label: 'Chat', icon: 'chat' },
   { id: 'family', label: 'Family', icon: 'home' },
 ]
 
@@ -54,6 +57,7 @@ function Home({ user }) {
   const [members, setMembers] = useState([])
   const [tab, setTab] = useState(store.get('aitf.tab') || 'calendar')
   const [adding, setAdding] = useState(false)
+  const [thread, setThread] = useState(null)
 
   const loadFamilies = useCallback(async () => {
     const { data } = await supabase.from('families').select('*').order('created_at')
@@ -85,6 +89,10 @@ function Home({ user }) {
   }, [family?.id, loadPeople])
 
   useEffect(() => { store.set('aitf.tab', tab) }, [tab])
+  useEffect(() => { setThread(null) }, [family?.id])
+  const chat = useChat(family?.id, user.id)
+  const openTab = (id) => { if (id === 'chat' && tab === 'chat') setThread(null); setTab(id) }
+  const openChat = (key) => { setThread(key); setTab('chat') }
 
   if (families === null) return <Splash />
 
@@ -107,7 +115,7 @@ function Home({ user }) {
   const ctx = { family, user, me, profiles, members, reloadPeople: () => loadPeople(family.id) }
 
   return (
-    <div className="shell">
+    <div className={`shell ${tab === 'chat' && thread ? 'shell-thread' : ''}`}>
       <header className="topbar">
         <div className="brand">
           <div className="logo-mark"><img src="/icon.svg" alt="" /></div>
@@ -124,8 +132,9 @@ function Home({ user }) {
         </div>
         <nav className="tabs-top">
           {TABS.map((t) => (
-            <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
+            <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => openTab(t.id)}>
               <Icon name={t.icon} /> {t.label}
+              {t.id === 'chat' && chat.totalUnread > 0 && <span className="tab-badge">{chat.totalUnread > 99 ? '99+' : chat.totalUnread}</span>}
             </button>
           ))}
         </nav>
@@ -136,13 +145,15 @@ function Home({ user }) {
         )}
       </header>
 
-      <main className="content" key={family.id}>
+      <main className={`content ${tab === 'chat' && thread ? 'in-thread' : ''}`} key={family.id}>
         {tab === 'calendar' && <Calendar {...ctx} />}
         {tab === 'lists' && <Lists {...ctx} />}
         {tab === 'polls' && <Polls {...ctx} />}
+        {tab === 'chat' && <Chat {...ctx} chat={chat} thread={thread} setThread={setThread} />}
         {tab === 'family' && (
           <Family
             {...ctx}
+            onMessage={openChat}
             onAddFamily={() => setAdding(true)}
             onFamilyChanged={async () => {
               const fs = await loadFamilies()
@@ -154,8 +165,11 @@ function Home({ user }) {
 
       <nav className="tabs-bottom">
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-            <Icon name={t.icon} />
+          <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => openTab(t.id)}>
+            <span className="tab-icon">
+              <Icon name={t.icon} />
+              {t.id === 'chat' && chat.totalUnread > 0 && <span className="tab-badge">{chat.totalUnread > 99 ? '99+' : chat.totalUnread}</span>}
+            </span>
             <span>{t.label}</span>
           </button>
         ))}
