@@ -486,5 +486,3 @@ input::-webkit-date-and-time-value { text-align: left; }
   .in-thread .thread { flex: 1; height: auto; min-height: 0; width: 100%; border-radius: 0; border: 0; box-shadow: none; }
   .tabs-bottom button { font-size: 11px; }
 }
-
-.code-input.otp { letter-spacing: .4em; font-size: 28px; padding-left: calc(14px + .4em); }
