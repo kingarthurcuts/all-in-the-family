@@ -1,44 +1,52 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { supabase, errMsg } from './supabase'
-import { Icon } from './ui'
 
+const remember = {
+  get(k) { try { return localStorage.getItem(k) || '' } catch { return '' } },
+  set(k, v) { try { localStorage.setItem(k, v) } catch { /* ignore */ } },
+}
+
+// No passwords: enter your name + email, then type the code we email you.
 export default function Auth() {
-  const [mode, setMode] = useState('signin') // signin | signup | forgot
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
+  const [step, setStep] = useState('email') // email | code
+  const [name, setName] = useState(remember.get('aitf.name'))
+  const [email, setEmail] = useState(remember.get('aitf.email'))
+  const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const codeRef = useRef(null)
 
-  async function submit(e) {
-    e.preventDefault()
+  async function sendCode(e) {
+    e?.preventDefault()
     setBusy(true); setError(''); setNotice('')
-    try {
-      if (mode === 'signin') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
-      } else if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
-          email, password,
-          options: { data: { display_name: name.trim() }, emailRedirectTo: window.location.origin },
-        })
-        if (error) throw error
-        if (!data.session) {
-          setNotice('Almost there! We sent a confirmation link to ' + email + '. Tap it, then come back and sign in.')
-          setMode('signin')
-        }
-      } else {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
-        if (error) throw error
-        setNotice('If that email has an account, a reset link is on its way.')
-        setMode('signin')
-      }
-    } catch (err) {
-      setError(errMsg(err))
-    } finally {
-      setBusy(false)
-    }
+    const cleanEmail = email.trim().toLowerCase()
+    remember.set('aitf.name', name.trim())
+    remember.set('aitf.email', cleanEmail)
+    const { error } = await supabase.auth.signInWithOtp({
+      email: cleanEmail,
+      options: {
+        shouldCreateUser: true,
+        data: { display_name: name.trim() },
+        emailRedirectTo: window.location.origin,
+      },
+    })
+    setBusy(false)
+    if (error) { setError(errMsg(error)); return }
+    setEmail(cleanEmail)
+    setCode('')
+    setStep('code')
+    setTimeout(() => codeRef.current?.focus(), 50)
+  }
+
+  async function verify(e) {
+    e?.preventDefault()
+    const token = code.replace(/\D/g, '')
+    if (token.length < 6) return
+    setBusy(true); setError('')
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
+    setBusy(false)
+    if (error) setError(/expired|invalid/i.test(error.message) ? 'That code didn’t work or has expired. Check it, or send a new one.' : errMsg(error))
   }
 
   return (
@@ -52,64 +60,42 @@ export default function Auth() {
         </div>
       </div>
 
-      <form className="card auth-card" onSubmit={submit}>
-        <h2>{mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Create your account' : 'Reset your password'}</h2>
-        {notice && <div className="notice">{notice}</div>}
-        {mode === 'signup' && (
+      {step === 'email' ? (
+        <form className="card auth-card" onSubmit={sendCode}>
+          <h2>Sign in</h2>
+          <p className="quiet small">No password needed — we’ll email you a code.</p>
           <label>Your name
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Dad, Grandma, Leo" required maxLength={40} autoComplete="nickname" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Dad, Grandma, Leo" required maxLength={40} autoComplete="nickname" enterKeyHint="next" />
           </label>
-        )}
-        <label>Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-        </label>
-        {mode !== 'forgot' && (
-          <label>Password
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} />
+          <label>Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" inputMode="email" autoCapitalize="none" enterKeyHint="send" />
           </label>
-        )}
-        {error && <div className="error">{error}</div>}
-        <button className="btn primary wide" disabled={busy}>
-          {busy ? 'One sec…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Sign up' : 'Send reset link'}
-        </button>
-        <div className="auth-links">
-          {mode === 'signin' ? (
-            <>
-              <button type="button" className="link" onClick={() => { setMode('signup'); setError('') }}>New here? Create an account</button>
-              <button type="button" className="link muted" onClick={() => { setMode('forgot'); setError('') }}>Forgot password?</button>
-            </>
-          ) : (
-            <button type="button" className="link" onClick={() => { setMode('signin'); setError('') }}>Back to sign in</button>
-          )}
-        </div>
-      </form>
-    </div>
-  )
-}
-
-export function NewPassword({ onDone }) {
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  async function submit(e) {
-    e.preventDefault()
-    setBusy(true); setError('')
-    const { error } = await supabase.auth.updateUser({ password })
-    setBusy(false)
-    if (error) setError(errMsg(error))
-    else onDone()
-  }
-  return (
-    <div className="auth-wrap">
-      <form className="card auth-card" onSubmit={submit}>
-        <h2>Choose a new password</h2>
-        <label>New password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required autoComplete="new-password" />
-        </label>
-        {error && <div className="error">{error}</div>}
-        <button className="btn primary wide" disabled={busy}>{busy ? 'Saving…' : 'Save password'}</button>
-      </form>
+          {error && <div className="error">{error}</div>}
+          <button className="btn primary wide" disabled={busy}>{busy ? 'Sending…' : 'Email me a code'}</button>
+        </form>
+      ) : (
+        <form className="card auth-card" onSubmit={verify}>
+          <h2>Check your email</h2>
+          <p className="quiet">We sent a code to <b>{email}</b>. Type it below.</p>
+          {notice && <div className="notice">{notice}</div>}
+          <label>Code
+            <input ref={codeRef} className="code-input otp" value={code}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, '').slice(0, 10)
+                setCode(v)
+              }}
+              inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" placeholder="••••••" required />
+          </label>
+          {error && <div className="error">{error}</div>}
+          <button className="btn primary wide" disabled={busy || code.length < 6}>{busy ? 'Checking…' : 'Sign in'}</button>
+          <div className="auth-links">
+            <button type="button" className="link" onClick={() => { setStep('email'); setError('') }}>Use a different email</button>
+            <button type="button" className="link muted" disabled={busy}
+              onClick={async () => { await sendCode(); setNotice('A new code is on its way.') }}>Send a new code</button>
+          </div>
+          <p className="quiet small center">Can’t find it? Check spam. The email may also have a sign-in link — tapping it works too, but it opens in your browser rather than the home-screen app.</p>
+        </form>
+      )}
     </div>
   )
 }
