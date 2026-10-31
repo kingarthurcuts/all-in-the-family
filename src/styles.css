@@ -486,3 +486,22 @@ input::-webkit-date-and-time-value { text-align: left; }
   .in-thread .thread { flex: 1; height: auto; min-height: 0; width: 100%; border-radius: 0; border: 0; box-shadow: none; }
   .tabs-bottom button { font-size: 11px; }
 }
+
+/* Event types + RSVPs */
+.cat-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.cat-chip { border: 1.5px solid var(--line); background: var(--card); color: var(--ink-2); border-radius: 999px; padding: 7px 12px; font-weight: 800; font-size: 14px; }
+.cat-chip.on { border-color: var(--coral); background: var(--coral-l); color: var(--ink); }
+.ev-emoji { font-size: 15px; }
+.ev-rsvp { font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin-top: 2px; }
+.ev-rsvp .rsvp-ask { color: var(--coral-d); }
+.rsvp-panel { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 16px; display: grid; gap: 10px; }
+.rsvp-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.rsvp-btn { border: 1.5px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 6px; font-weight: 800; font-size: 14px; color: var(--ink); min-height: 44px; }
+.rsvp-btn.on.yes { border-color: var(--teal); background: var(--teal-l); }
+.rsvp-btn.on.maybe { border-color: var(--sun); background: var(--sun-l); }
+.rsvp-btn.on.no { border-color: var(--coral); background: var(--coral-l); }
+.rsvp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rsvp-k { display: block; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); margin-bottom: 4px; }
+.rsvp-people { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.rsvp-person { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }
+.rsvp-person.quiet { color: var(--ink-2); }

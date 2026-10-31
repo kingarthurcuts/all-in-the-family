@@ -1,14 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, errMsg } from './supabase'
 import { MONTHS, DOW, dayKey, fromDayKey, monthGrid, eventDays, prettyTime, prettyDay, shortDay, combine, timeStr } from './dates'
-import { Icon, Avatar, Sheet, Empty, isTouch } from './ui'
+import { Icon, Avatar, Sheet, Empty, isTouch, buzz } from './ui'
 import { useLive } from './useLive'
 
-export default function Calendar({ family, profiles }) {
+// Event types. `rsvp` = whether new events of this type ask for RSVPs by default.
+export const CATEGORIES = [
+  { id: 'general', label: 'Plans', emoji: '📅' },
+  { id: 'birthday', label: 'Birthday', emoji: '🎂', rsvp: true },
+  { id: 'party', label: 'Party', emoji: '🎉', rsvp: true },
+  { id: 'dinner', label: 'Dinner', emoji: '🍽️', rsvp: true },
+  { id: 'sports', label: 'Practice / Game', emoji: '⚽' },
+  { id: 'appointment', label: 'Appointment', emoji: '🩺' },
+  { id: 'trip', label: 'Trip', emoji: '✈️', rsvp: true },
+  { id: 'school', label: 'School', emoji: '🎒' },
+]
+const CAT = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]))
+const catOf = (ev) => CAT[ev.category] || CAT.general
+const RSVP_CHOICES = [
+  { id: 'yes', label: 'Going', emoji: '👍' },
+  { id: 'maybe', label: 'Maybe', emoji: '🤔' },
+  { id: 'no', label: 'Can’t make it', emoji: '🙅' },
+]
+
+export default function Calendar({ family, user, profiles, members }) {
   const today = new Date()
   const [cursor, setCursor] = useState({ y: today.getFullYear(), m: today.getMonth() })
   const [selected, setSelected] = useState(dayKey(today))
   const [events, setEvents] = useState([])
+  const [rsvps, setRsvps] = useState([])
   const [editing, setEditing] = useState(null) // {} for new, event for edit
   const swipe = useRef(null)
 
@@ -27,8 +47,17 @@ export default function Calendar({ family, profiles }) {
     setEvents(data || [])
   }, [family.id, rangeStart.getTime(), rangeEnd.getTime()])
 
+  const loadRsvps = useCallback(async () => {
+    const { data } = await supabase.from('event_rsvps').select('*').eq('family_id', family.id)
+    setRsvps(data || [])
+  }, [family.id])
+
   useEffect(() => { load() }, [load])
+  useEffect(() => { loadRsvps() }, [loadRsvps])
   useLive(family.id, ['events'], load)
+  useLive(family.id, ['event_rsvps'], loadRsvps)
+
+  const rsvpsFor = (id) => rsvps.filter((r) => r.event_id === id)
 
   const byDay = useMemo(() => {
     const map = {}
@@ -89,7 +118,7 @@ export default function Calendar({ family, profiles }) {
                 <span className="num">{d.getDate()}</span>
                 <span className="chips">
                   {evs.slice(0, 3).map((ev) => (
-                    <span key={ev.id} className="chip" style={{ '--c': profiles[ev.created_by]?.color || '#FF7A59' }}>{ev.title}</span>
+                    <span key={ev.id} className="chip" style={{ '--c': profiles[ev.created_by]?.color || '#FF7A59' }}>{catOf(ev).emoji} {ev.title}</span>
                   ))}
                   {evs.length > 3 && <span className="more">+{evs.length - 3}</span>}
                 </span>
@@ -115,7 +144,7 @@ export default function Calendar({ family, profiles }) {
             <p className="quiet">Nothing planned. Tap Add to put something on the calendar.</p>
           ) : (
             <ul className="event-list">
-              {selEvents.map((ev) => <EventRow key={ev.id} ev={ev} profiles={profiles} onClick={() => setEditing(ev)} />)}
+              {selEvents.map((ev) => <EventRow key={ev.id} ev={ev} profiles={profiles} rsvps={rsvpsFor(ev.id)} user={user} onClick={() => setEditing(ev)} />)}
             </ul>
           )}
         </section>
@@ -139,6 +168,10 @@ export default function Calendar({ family, profiles }) {
           initial={editing}
           family={family}
           profiles={profiles}
+          user={user}
+          members={members}
+          rsvps={editing.id ? rsvpsFor(editing.id) : []}
+          setRsvps={setRsvps}
           onClose={() => setEditing(null)}
           onSaved={(k) => { setEditing(null); load(); if (k) { setSelected(k); const d = fromDayKey(k); setCursor({ y: d.getFullYear(), m: d.getMonth() }) } }}
         />
@@ -147,7 +180,7 @@ export default function Calendar({ family, profiles }) {
   )
 }
 
-function EventRow({ ev, profiles, showDate, onClick }) {
+function EventRow({ ev, profiles, rsvps, user, showDate, onClick }) {
   const s = new Date(ev.starts_at)
   const e = ev.ends_at ? new Date(ev.ends_at) : null
   const who = profiles[ev.created_by]
@@ -156,12 +189,13 @@ function EventRow({ ev, profiles, showDate, onClick }) {
       <button className="event-row" onClick={onClick} style={{ '--c': who?.color || '#FF7A59' }}>
         <span className="bar" />
         <span className="ev-main">
-          <span className="ev-title">{ev.title}</span>
+          <span className="ev-title"><span className="ev-emoji" aria-label={catOf(ev).label}>{catOf(ev).emoji}</span> {ev.title}</span>
           <span className="ev-meta">
             {showDate && <>{shortDay(s)} · </>}
             {ev.all_day ? 'All day' : <>{prettyTime(s)}{e && ` – ${prettyTime(e)}`}</>}
             {ev.location && <> · {ev.location}</>}
           </span>
+          {ev.rsvp && <RsvpSummary rsvps={rsvps} user={user} />}
         </span>
         <Avatar profile={who} size={26} />
       </button>
@@ -169,7 +203,66 @@ function EventRow({ ev, profiles, showDate, onClick }) {
   )
 }
 
-function EventForm({ initial, family, profiles, onClose, onSaved }) {
+function RsvpSummary({ rsvps, user }) {
+  const going = rsvps.filter((r) => r.status === 'yes').length
+  const maybe = rsvps.filter((r) => r.status === 'maybe').length
+  const mine = rsvps.find((r) => r.user_id === user.id)
+  return (
+    <span className="ev-rsvp">
+      {going} going{maybe > 0 && ` · ${maybe} maybe`}
+      {mine ? <span className="rsvp-you"> · you: {RSVP_CHOICES.find((c) => c.id === mine.status)?.label}</span>
+        : <span className="rsvp-ask"> · RSVP</span>}
+    </span>
+  )
+}
+
+function RsvpPanel({ event, user, members, profiles, rsvps, setRsvps }) {
+  const [error, setError] = useState('')
+  const mine = rsvps.find((r) => r.user_id === user.id)?.status
+  async function answer(status) {
+    setError('')
+    buzz()
+    const prev = rsvps
+    if (mine === status) {
+      setRsvps((all) => all.filter((r) => !(r.event_id === event.id && r.user_id === user.id)))
+      const { error } = await supabase.from('event_rsvps').delete().eq('event_id', event.id).eq('user_id', user.id)
+      if (error) { setError(errMsg(error)); setRsvps((all) => [...all, ...prev.filter((r) => r.user_id === user.id)]) }
+      return
+    }
+    const row = { event_id: event.id, family_id: event.family_id, user_id: user.id, status, updated_at: new Date().toISOString() }
+    setRsvps((all) => [...all.filter((r) => !(r.event_id === event.id && r.user_id === user.id)), row])
+    const { error } = await supabase.from('event_rsvps').upsert(row, { onConflict: 'event_id,user_id' })
+    if (error) setError(errMsg(error))
+  }
+  const by = (st) => rsvps.filter((r) => r.status === st)
+  const answered = new Set(rsvps.map((r) => r.user_id))
+  const waiting = members.filter((m) => !answered.has(m.user_id))
+  return (
+    <section className="rsvp-panel">
+      <div className="field-label">Are you coming?</div>
+      <div className="rsvp-btns">
+        {RSVP_CHOICES.map((c) => (
+          <button type="button" key={c.id} className={`rsvp-btn ${mine === c.id ? 'on ' + c.id : ''}`} onClick={() => answer(c.id)} aria-pressed={mine === c.id}>
+            <span aria-hidden="true">{c.emoji}</span> {c.label}
+          </button>
+        ))}
+      </div>
+      {error && <div className="error">{error}</div>}
+      <ul className="rsvp-list">
+        {RSVP_CHOICES.map((c) => by(c.id).length > 0 && (
+          <li key={c.id}><span className="rsvp-k">{c.label} · {by(c.id).length}</span>
+            <span className="rsvp-people">{by(c.id).map((r) => <span key={r.user_id} className="rsvp-person"><Avatar profile={profiles[r.user_id]} size={22} />{profiles[r.user_id]?.display_name || 'Member'}</span>)}</span></li>
+        ))}
+        {waiting.length > 0 && (
+          <li><span className="rsvp-k">No answer yet · {waiting.length}</span>
+            <span className="rsvp-people">{waiting.map((m) => <span key={m.user_id} className="rsvp-person quiet"><Avatar profile={profiles[m.user_id]} size={22} />{profiles[m.user_id]?.display_name || 'Member'}</span>)}</span></li>
+        )}
+      </ul>
+    </section>
+  )
+}
+
+function EventForm({ initial, family, profiles, user, members, rsvps, setRsvps, onClose, onSaved }) {
   const isNew = !initial.id
   const s = initial.starts_at ? new Date(initial.starts_at) : null
   const e = initial.ends_at ? new Date(initial.ends_at) : null
@@ -181,6 +274,10 @@ function EventForm({ initial, family, profiles, onClose, onSaved }) {
   const [end, setEnd] = useState(e && !initial.all_day ? timeStr(e) : '18:00')
   const [location, setLocation] = useState(initial.location || '')
   const [notes, setNotes] = useState(initial.notes || '')
+  const [category, setCategory] = useState(initial.category || 'general')
+  const [rsvp, setRsvp] = useState(initial.rsvp ?? false)
+  const [rsvpTouched, setRsvpTouched] = useState(!isNew)
+  const pickCategory = (id) => { setCategory(id); if (!rsvpTouched) setRsvp(!!CAT[id]?.rsvp) }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -194,6 +291,7 @@ function EventForm({ initial, family, profiles, onClose, onSaved }) {
     setBusy(true)
     const row = {
       title: title.trim(), location: location.trim() || null, notes: notes.trim() || null,
+      category, rsvp,
       all_day: allDay, starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(),
     }
     const q = isNew
@@ -224,9 +322,23 @@ function EventForm({ initial, family, profiles, onClose, onSaved }) {
 
   return (
     <Sheet title={isNew ? 'New event' : 'Edit event'} onClose={onClose}>
+      {!isNew && initial.rsvp && (
+        <RsvpPanel event={initial} user={user} members={members} profiles={profiles} rsvps={rsvps} setRsvps={setRsvps} />
+      )}
       <form className="form" onSubmit={save}>
+        <div>
+          <div className="field-label">Type of event</div>
+          <div className="cat-pick" role="radiogroup" aria-label="Type of event">
+            {CATEGORIES.map((c) => (
+              <button type="button" key={c.id} role="radio" aria-checked={category === c.id}
+                className={`cat-chip ${category === c.id ? 'on' : ''}`} onClick={() => pickCategory(c.id)}>
+                <span aria-hidden="true">{c.emoji}</span> {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <label>What’s happening?
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Soccer practice" required maxLength={120} autoFocus={isNew && !isTouch()} enterKeyHint="next" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)}  placeholder={category === 'birthday' ? 'Grandma’s 70th birthday' : category === 'dinner' ? 'Sunday family dinner' : 'Soccer practice'} required maxLength={120} autoFocus={isNew && !isTouch()} enterKeyHint="next" />
         </label>
         <label className="toggle">
           <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />
@@ -246,6 +358,10 @@ function EventForm({ initial, family, profiles, onClose, onSaved }) {
         </div>
         <label><span>Where <span className="opt">optional</span></span>
           <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Riverside Park, field 3" maxLength={160} />
+        </label>
+        <label className="toggle">
+          <input type="checkbox" checked={rsvp} onChange={(e) => { setRsvp(e.target.checked); setRsvpTouched(true) }} />
+          <span className="switch" /> Ask everyone to RSVP
         </label>
         <label><span>Notes <span className="opt">optional</span></span>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Bring snacks and the blue jersey" maxLength={2000} />
