@@ -1,34 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { InstallCard } from './Install'
 
-function InstallCard() {
-  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone
-  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent)
-  const [prompt, setPrompt] = useState(window.__installPrompt || null)
-  useEffect(() => {
-    const on = () => setPrompt(window.__installPrompt)
-    window.addEventListener('installable', on)
-    return () => window.removeEventListener('installable', on)
-  }, [])
-  if (standalone) return null
-  return (
-    <section className="card install">
-      <img src="/icon.svg" alt="" className="install-icon" />
-      <div className="install-text">
-        <h2>Put it on your home screen</h2>
-        {prompt ? (
-          <p className="quiet small">Opens full screen, just like a regular app.</p>
-        ) : ios ? (
-          <p className="quiet small">In Safari, tap the <b>Share</b> button <span className="share-glyph" aria-hidden="true">⬆︎</span>, then <b>Add to Home Screen</b>.</p>
-        ) : (
-          <p className="quiet small">In your browser menu (⋮), choose <b>Add to Home screen</b> or <b>Install app</b>.</p>
-        )}
-      </div>
-      {prompt && (
-        <button className="btn primary small" onClick={async () => { prompt.prompt(); await prompt.userChoice; window.__installPrompt = null; setPrompt(null) }}>Install</button>
-      )}
-    </section>
-  )
-}
 import { supabase, errMsg, COLORS } from './supabase'
 import { Icon, Avatar } from './ui'
 

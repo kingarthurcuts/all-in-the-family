@@ -7,6 +7,7 @@ import Lists from './Lists'
 import Polls from './Polls'
 import Family from './Family'
 import Chat from './Chat'
+import { InstallBanner } from './Install'
 import { useChat } from './useChat'
 import { Icon } from './ui'
 
@@ -145,6 +146,7 @@ function Home({ user }) {
         )}
       </header>
 
+      {!(tab === 'chat' && thread) && <InstallBanner />}
       <main className={`content ${tab === 'chat' && thread ? 'in-thread' : ''}`} key={family.id}>
         {tab === 'calendar' && <Calendar {...ctx} />}
         {tab === 'lists' && <Lists {...ctx} />}

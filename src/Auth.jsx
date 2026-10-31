@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase, errMsg } from './supabase'
 import { Icon } from './ui'
+import { InstallLink } from './Install'
 
 export default function Auth() {
   const [mode, setMode] = useState('signin') // signin | signup | forgot
@@ -84,6 +85,7 @@ export default function Auth() {
           )}
         </div>
       </form>
+      <InstallLink />
     </div>
   )
 }
