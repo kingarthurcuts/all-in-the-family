@@ -155,7 +155,7 @@ export default function Calendar({ family, user, profiles, members }) {
             <Empty emoji="🗓️" title="A clear calendar">Add birthdays, practices, trips — anything the family should know about.</Empty>
           ) : (
             <ul className="event-list">
-              {upcoming.map((ev) => <EventRow key={ev.id} ev={ev} profiles={profiles} showDate onClick={() => setEditing(ev)} />)}
+              {upcoming.map((ev) => <EventRow key={ev.id} ev={ev} profiles={profiles} rsvps={rsvpsFor(ev.id)} user={user} showDate onClick={() => setEditing(ev)} />)}
             </ul>
           )}
         </section>
@@ -203,10 +203,10 @@ function EventRow({ ev, profiles, rsvps, user, showDate, onClick }) {
   )
 }
 
-function RsvpSummary({ rsvps, user }) {
+function RsvpSummary({ rsvps = [], user }) {
   const going = rsvps.filter((r) => r.status === 'yes').length
   const maybe = rsvps.filter((r) => r.status === 'maybe').length
-  const mine = rsvps.find((r) => r.user_id === user.id)
+  const mine = rsvps.find((r) => r.user_id === user?.id)
   return (
     <span className="ev-rsvp">
       {going} going{maybe > 0 && ` · ${maybe} maybe`}
