@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Icon, Avatar, buzz } from './ui'
 import { prettyTime, dayKey } from './dates'
+import { isGif } from './images'
 
 function when(iso) {
   const d = new Date(iso)
@@ -63,7 +64,8 @@ function InboxRow({ row, t, user, profiles, members, onOpen }) {
   let preview = row.group ? 'Everyone in the family' : 'Say hi 👋'
   if (last) {
     const who = last.sender_id === user.id ? 'You' : row.group ? profiles[last.sender_id]?.display_name : null
-    preview = (who ? who + ': ' : '') + last.body
+    const what = last.body?.trim() || (isGif(last.image_path) ? 'GIF' : '📷 Photo')
+    preview = (who ? who + ': ' : '') + what
   }
   return (
     <button className={`inbox-row ${t?.unread ? 'has-unread' : ''}`} onClick={() => onOpen(row.key)}>
@@ -98,6 +100,10 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
   const msgs = chat.threads[thread]?.messages || []
   const [text, setText] = useState('')
   const [picked, setPicked] = useState(null)
+  const [file, setFile] = useState(null) // photo waiting to be sent
+  const [filePreview, setFilePreview] = useState(null)
+  const [viewing, setViewing] = useState(null)
+  const fileInput = useRef(null)
   const scroller = useRef(null)
   const input = useRef(null)
   const lastId = msgs[msgs.length - 1]?.id
@@ -115,11 +121,13 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
   async function submit(e) {
     e.preventDefault()
     const body = text.trim()
-    if (!body) return
-    setText('')
+    if (!body && !file) return
+    const f = file
+    setText(''); setFile(null); setFilePreview(null)
+    if (input.current) input.current.style.height = 'auto'
     buzz(8)
-    input.current?.focus()
-    await chat.send(thread, body)
+    if (!f) input.current?.focus()
+    await chat.send(thread, body, f)
   }
 
   const items = []
@@ -159,6 +167,7 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
           ) : (
             <Bubble key={it.m.id} m={it.m} mine={it.m.sender_id === user.id} first={it.first} last={it.last}
               showName={isGroup} profile={profiles[it.m.sender_id]}
+              src={it.m.local_url || chat.urls[it.m.image_path]} onView={setViewing}
               picked={picked === it.m.id} onPick={() => setPicked(picked === it.m.id ? null : it.m.id)}
               onDelete={() => { chat.remove(it.m.id); setPicked(null) }} />
           )
@@ -167,30 +176,67 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
 
       {stillMember ? (
         <form className="composer" onSubmit={submit}>
+          {filePreview && (
+            <div className="attach-preview">
+              <img src={filePreview} alt="Photo to send" />
+              <button type="button" className="attach-x" aria-label="Remove photo" onClick={() => { setFile(null); setFilePreview(null) }}><Icon name="x" size={14} /></button>
+            </div>
+          )}
+          <div className="composer-row">
+          <input ref={fileInput} type="file" accept="image/*" hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              e.target.value = ''
+              if (!f) return
+              if (f.size > 15 * 1024 * 1024) { alert('That file is over 15 MB. Try a smaller photo or GIF.'); return }
+              setFile(f); setFilePreview(URL.createObjectURL(f))
+            }} />
+          <button type="button" className="attach" aria-label="Add a photo or GIF" onClick={() => fileInput.current?.click()}><Icon name="image" size={22} /></button>
           <textarea ref={input} value={text} rows={1} maxLength={4000}
-            placeholder={isGroup ? 'Message the family…' : `Message ${other?.display_name || ''}…`}
+            placeholder={file ? 'Add a caption…' : isGroup ? 'Message the family…' : `Message ${other?.display_name || ''}…`}
             aria-label="Message"
             enterKeyHint="send"
             onChange={(e) => { setText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px' }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && window.matchMedia('(pointer: fine)').matches) submit(e)
             }} />
-          <button className="send" disabled={!text.trim()} aria-label="Send"><Icon name="send" size={20} /></button>
+          <button className="send" disabled={!text.trim() && !file} aria-label="Send"><Icon name="send" size={20} /></button>
+          </div>
         </form>
       ) : (
         <div className="composer gone quiet small">This person is no longer in the family.</div>
+      )}
+      {viewing && (
+        <div className="viewer" onClick={() => setViewing(null)} role="dialog" aria-label="Photo">
+          <img src={viewing.src} alt="" />
+          <button className="viewer-x" aria-label="Close"><Icon name="x" size={22} /></button>
+          {viewing.m.sender_id === user.id && !viewing.m.pending && (
+            <button className="viewer-del" onClick={(e) => { e.stopPropagation(); chat.remove(viewing.m.id); setViewing(null) }}>
+              <Icon name="trash" size={18} /> Delete photo
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
 }
 
-function Bubble({ m, mine, first, last, showName, profile, picked, onPick, onDelete }) {
+function Bubble({ m, mine, first, last, showName, profile, picked, onPick, onDelete, src, onView }) {
+  const hasImg = m.image_path || m.local_url
+  const ratio = m.image_w && m.image_h ? m.image_w / m.image_h : 1
   return (
     <div className={`msg ${mine ? 'mine' : 'theirs'} ${first ? 'first' : ''} ${last ? 'last' : ''}`}>
       {!mine && <span className="msg-av">{last && <Avatar profile={profile} size={28} />}</span>}
       <div className="msg-col">
         {!mine && showName && first && <span className="msg-name" style={{ color: profile?.color }}>{profile?.display_name || 'Member'}</span>}
-        <button type="button" className="bubble" onClick={onPick}>{m.body}</button>
+        {hasImg && (
+          <button type="button" className={`photo ${m.pending ? 'sending' : ''}`} style={{ aspectRatio: String(Math.max(0.5, Math.min(2, ratio))) }}
+            onClick={() => (src ? onView({ src, m }) : null)} onContextMenu={(e) => { e.preventDefault(); onPick() }} aria-label="Open photo">
+            {src ? <img src={src} alt="" loading="lazy" draggable="false" /> : <span className="photo-wait" />}
+            {isGif(m.image_path) && <span className="gif-tag">GIF</span>}
+          </button>
+        )}
+        {m.body?.trim() && <button type="button" className="bubble" onClick={onPick}>{m.body}</button>}
         {(last || picked) && (
           <span className="msg-meta">
             {m.failed ? 'Not sent — check your connection' : m.pending ? 'Sending…' : prettyTime(new Date(m.created_at))}
