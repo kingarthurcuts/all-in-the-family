@@ -66,8 +66,9 @@ export function useChat(familyId, myId) {
     await supabase.from('chat_reads').upsert({ family_id: familyId, thread, last_read_at: at, user_id: myId })
   }, [familyId, myId])
 
-  const send = useCallback(async (thread, body, file) => {
+  const send = useCallback(async (thread, body, file, gif) => {
     const row = { family_id: familyId, sender_id: myId, recipient_id: thread === 'group' ? null : thread, body: body || '' }
+    if (gif) Object.assign(row, { gif_url: gif.url, image_w: gif.w, image_h: gif.h })
     const tempId = 'temp-' + Math.random()
     let img = null
     if (file) {

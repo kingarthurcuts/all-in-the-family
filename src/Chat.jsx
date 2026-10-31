@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Icon, Avatar, buzz } from './ui'
 import { prettyTime, dayKey } from './dates'
 import { isGif } from './images'
+import GifPicker from './GifPicker'
 
 function when(iso) {
   const d = new Date(iso)
@@ -64,7 +65,7 @@ function InboxRow({ row, t, user, profiles, members, onOpen }) {
   let preview = row.group ? 'Everyone in the family' : 'Say hi 👋'
   if (last) {
     const who = last.sender_id === user.id ? 'You' : row.group ? profiles[last.sender_id]?.display_name : null
-    const what = last.body?.trim() || (isGif(last.image_path) ? 'GIF' : '📷 Photo')
+    const what = last.body?.trim() || (last.gif_url || isGif(last.image_path) ? 'GIF' : '📷 Photo')
     preview = (who ? who + ': ' : '') + what
   }
   return (
@@ -104,6 +105,7 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
   const [filePreview, setFilePreview] = useState(null)
   const [viewing, setViewing] = useState(null)
   const fileInput = useRef(null)
+  const [gifOpen, setGifOpen] = useState(false)
   const scroller = useRef(null)
   const input = useRef(null)
   const lastId = msgs[msgs.length - 1]?.id
@@ -167,7 +169,7 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
           ) : (
             <Bubble key={it.m.id} m={it.m} mine={it.m.sender_id === user.id} first={it.first} last={it.last}
               showName={isGroup} profile={profiles[it.m.sender_id]}
-              src={it.m.local_url || chat.urls[it.m.image_path]} onView={setViewing}
+              src={it.m.gif_url || it.m.local_url || chat.urls[it.m.image_path]} onView={setViewing}
               picked={picked === it.m.id} onPick={() => setPicked(picked === it.m.id ? null : it.m.id)}
               onDelete={() => { chat.remove(it.m.id); setPicked(null) }} />
           )
@@ -191,7 +193,8 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
               if (f.size > 15 * 1024 * 1024) { alert('That file is over 15 MB. Try a smaller photo or GIF.'); return }
               setFile(f); setFilePreview(URL.createObjectURL(f))
             }} />
-          <button type="button" className="attach" aria-label="Add a photo or GIF" onClick={() => fileInput.current?.click()}><Icon name="image" size={22} /></button>
+          <button type="button" className="attach" aria-label="Add a photo" onClick={() => fileInput.current?.click()}><Icon name="image" size={22} /></button>
+          <button type="button" className="attach gif-btn" aria-label="Send a GIF" onClick={() => setGifOpen(true)}>GIF</button>
           <textarea ref={input} value={text} rows={1} maxLength={4000}
             placeholder={file ? 'Add a caption…' : isGroup ? 'Message the family…' : `Message ${other?.display_name || ''}…`}
             aria-label="Message"
@@ -205,6 +208,10 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
         </form>
       ) : (
         <div className="composer gone quiet small">This person is no longer in the family.</div>
+      )}
+      {gifOpen && (
+        <GifPicker onClose={() => setGifOpen(false)}
+          onPick={(g) => { setGifOpen(false); buzz(8); chat.send(thread, '', null, g) }} />
       )}
       {viewing && (
         <div className="viewer" onClick={() => setViewing(null)} role="dialog" aria-label="Photo">
@@ -222,7 +229,7 @@ function Thread({ thread, family, user, profiles, members, chat, onBack }) {
 }
 
 function Bubble({ m, mine, first, last, showName, profile, picked, onPick, onDelete, src, onView }) {
-  const hasImg = m.image_path || m.local_url
+  const hasImg = m.image_path || m.local_url || m.gif_url
   const ratio = m.image_w && m.image_h ? m.image_w / m.image_h : 1
   return (
     <div className={`msg ${mine ? 'mine' : 'theirs'} ${first ? 'first' : ''} ${last ? 'last' : ''}`}>
@@ -233,7 +240,7 @@ function Bubble({ m, mine, first, last, showName, profile, picked, onPick, onDel
           <button type="button" className={`photo ${m.pending ? 'sending' : ''}`} style={{ aspectRatio: String(Math.max(0.5, Math.min(2, ratio))) }}
             onClick={() => (src ? onView({ src, m }) : null)} onContextMenu={(e) => { e.preventDefault(); onPick() }} aria-label="Open photo">
             {src ? <img src={src} alt="" loading="lazy" draggable="false" /> : <span className="photo-wait" />}
-            {isGif(m.image_path) && <span className="gif-tag">GIF</span>}
+            {(m.gif_url || isGif(m.image_path)) && <span className="gif-tag">GIF</span>}
           </button>
         )}
         {m.body?.trim() && <button type="button" className="bubble" onClick={onPick}>{m.body}</button>}
